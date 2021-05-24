@@ -27,19 +27,23 @@ SELECT location, date, total_cases, total_deaths, LEFT(((total_deaths/total_case
 --Looking at the total cases vs population.
 --Shows what percentage of populatioin got covid.
 
-SELECT location, date, population, total_cases, (total_cases/population)*100)  AS PercentPopulationInfected
+SELECT location, date, population, total_cases, total_cases/population*100  AS PercentPopulationInfected
 	FROM dbo.CovidDeaths
 	WHERE location LIKE '%states%' AND continent IS NOT NULL
 	ORDER BY 1,2;
 
 
 --Looking at countries with highest infection rate compared to population.
+--Create view for visualization #1
 
-SELECT location, population, MAX(total_cases) AS HighestInfectionCount, ((MAX(total_cases/population))*100) AS PercentPopulationInfected
+CREATE VIEW PercentInfected AS
+SELECT location, population, date, MAX(total_cases) AS HighestInfectionCount, ((MAX(total_cases/population))*100) AS PercentPopulationInfected
 	FROM dbo.CovidDeaths
     WHERE continent IS NOT NULL
-	GROUP BY location, population
-	ORDER BY PercentPopulationInfected DESC;
+	GROUP BY location, population, date;
+
+SELECT *
+  FROM PercentInfected;
 
 
 --Showing countries with the highest date count per population.
@@ -75,6 +79,30 @@ SELECT date, SUM(new_cases) AS TotalCases, SUM(new_deaths) AS TotalDeaths, SUM(n
 	WHERE continent IS NOT NULL
 	GROUP BY date
 	ORDER BY 1,2;
+
+
+--Create view for visualization #2
+
+CREATE VIEW GlobalDeaths AS
+SELECT SUM(new_cases) AS TotalCases, SUM(new_deaths) AS TotalDeaths, SUM(new_deaths)/SUM(new_cases)*100 AS DeathPercentage
+	FROM dbo.CovidDeaths
+	WHERE continent IS NOT NULL;
+	
+SELECT *
+  FROM GlobalDeaths;
+	
+
+--Create view for visualization #3
+
+CREATE VIEW ContinentDeaths AS
+SELECT location, SUM(new_deaths) AS TotalDeathCount
+  FROM CovidDeaths
+  WHERE continent IS NULL 
+  AND location NOT IN ('World', 'European Union', 'International')
+  GROUP BY location;
+
+SELECT *
+  FROM ContinentDeaths;
 
 
 --CovidVaccinations Table
@@ -131,13 +159,13 @@ INSERT INTO #PercentPopulationVaccinated
 	JOIN CovidVaccinations AS vac
 	  ON dea.location = vac.location 
 	 AND dea.date = vac.date
-	 WHERE dea.continent IS NOT NULL
+   WHERE dea.continent IS NOT NULL
 
 	 SELECT *, (RollingVaccinations/population)*100
   FROM #PercentPopulationVaccinated;
 
 
---Create view for later visualizations
+--Create view for visualization #4
 
 CREATE VIEW PercentPopulationVaccinated AS
  SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations,
